@@ -76,6 +76,8 @@
 
 // endmodule
 
+`timescale 1ns / 1ps
+
 module TSC (
     input wire rst,
     input wire start,
@@ -132,24 +134,30 @@ module TSC (
             trigtm <= 32'h0;
             req <= 1'b0;
             i <= 8'h0;
+            $display("TSC Reset.");
         end else begin
             // State machine
             case (state)
                 IDLE: begin
+                    $display("state: IDLE, sbf = %b, trd = %b", sbf, trd);
                     if (start) begin
                         trigtm <= 32'h0;
                         state <= RUNNING;
                         req <= 1'b1;
+                        $display("Start received");
                     end else if (sbf && trd) begin
+                        $display("Entering Buffer Send mode");
                         state <= BUFFER_SEND;
                         sd <= 1'b1;
                         cd <= 1'b0;
                     end
                 end
                 RUNNING: begin
+                    $display("state: RUNNING.");
                     req <= 1'b1;
                     if (adc_data < TRIGVL) begin
                         if (req && rdy) begin
+                            // $display("data=%d", adc_data);
                             ring_buffer[head] <= adc_data;
                             head <= (head + 1) % BUFFER_SIZE;
                             timer <= timer + 1;
@@ -158,6 +166,7 @@ module TSC (
                     end else begin
                         temp <= timer;
                         state <= TRIGGERED;
+                        $display("Triggered, data=%d",adc_data);
                     end
                 end
                 TRIGGERED: begin
@@ -179,11 +188,13 @@ module TSC (
                     end
                 end
                 BUFFER_SEND: begin
+                    
                     if (i < 32) begin
                         sd <= {1'b0, ring_buffer[tail]};
                         tail <= (tail + 1) % BUFFER_SIZE;
                         i <= i + 1;
                     end else begin
+                        $display("Buffer send complete from tsc side.");
                         trd <= 1'b0;
                         sd <= 1'b0;
                         cd <= 1'b1;

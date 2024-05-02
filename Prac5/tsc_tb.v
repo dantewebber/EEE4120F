@@ -2,6 +2,9 @@
 
 module tsc_tb;
 
+    // Var declaration
+    integer count;
+
     // Parameters
     parameter CLK_PERIOD = 10; // Clock period in ns
 
@@ -22,7 +25,13 @@ module tsc_tb;
     );
 
     // Clock generation
-    always #((CLK_PERIOD)/2) clk = ~clk;
+    // always #((CLK_PERIOD)/2) clk = ~clk;
+
+    initial begin
+        // 100ns clock period
+        clk = 1'b0;
+        forever #50 clk = ~clk;
+    end
 
     // Stimulus
     initial begin
@@ -38,6 +47,7 @@ module tsc_tb;
 
         // Wait until the tigger is detected
         @(posedge trd);
+        $display("Test Bench captured trigger event.");
         
         if (tsc_inst.trigtm == 0) begin
             $display("ERROR: TRIGTM not captured");
@@ -46,16 +56,26 @@ module tsc_tb;
         end
 
         // Send buffer request
-        sbf = 1;
-        #5 sbf = 0;
+        #100 sbf = 1;
+        @(posedge sd);
+        sbf = 0;
+
+        // @(posedge sd);
+        for (count = 0; count < 32; count = count +1)
+        begin 
+            @(posedge clk);
+            $display("SD Data: %b", {sd[8], sd[7:0]});
+            $display("SD Data (in decimal): %d", sd);
+        end
 
         // Wait for the data to finish sending
         @(posedge cd);
+        $display("Test bench received buffer send completed");
 
         // Display the data sent in sd
-        $display("SD Data: %b", {sd[8], sd[7:0]});
+        // $display("SD Data: %b", {sd[8], sd[7:0]});
 
-        #100 $finish;
+        #2000 $finish;
     end
 
 endmodule
