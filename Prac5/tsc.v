@@ -118,6 +118,7 @@ module TSC (
     reg [4:0] captured_no;
     reg [7:0] i, temp;
     reg [31:0] timer;
+    reg timer_increment_flag;
     output reg [31:0] trigtm;
 
     always @ (posedge clk or posedge rst) begin
@@ -134,8 +135,13 @@ module TSC (
             trigtm <= 32'h0;
             req <= 1'b0;
             i <= 8'h0;
+            timer_increment_flag <= 1'b0;
             $display("TSC Reset.");
         end else begin
+            // Increments timer if not in IDLE or SEND_BUFFER state
+            if (timer_increment_flag) begin
+                timer <= timer + 1;
+            end
             // State machine
             case (state)
                 IDLE: begin
@@ -144,6 +150,7 @@ module TSC (
                         trigtm <= 32'h0;
                         state <= RUNNING;
                         req <= 1'b1;
+                        timer_increment_flag <= 1'b1; // Start timer
                         $display("Start received");
                     end else if (sbf && trd) begin
                         $display("Entering Buffer Send mode");
@@ -160,7 +167,7 @@ module TSC (
                             // $display("data=%d", adc_data);
                             ring_buffer[head] <= adc_data;
                             head <= (head + 1) % BUFFER_SIZE;
-                            timer <= timer + 1;
+                            // timer <= timer + 1;
                             req <= 1'b0;
                         end
                     end else begin
@@ -178,17 +185,17 @@ module TSC (
                         captured_no <= captured_no + 1;
                         req <= 1'b0;
                         if (captured_no == 16) begin
-                            trd <= 1'b1;
-                            req <= 1'b0;
+                            trd <= 1'b1; // pull trigger detected line high
+                            req <= 1'b0; // stop adc value request
+                            timer_increment_flag <= 1'b0; // stop timer
                             state <= IDLE;
                         end else begin
-                            timer <= timer + 1;
-                            req <= 1'b0;
+                            // timer <= timer + 1;
+                            req <= 1'b0; // Make sure tsc isn't requesting readings from adc
                         end
                     end
                 end
                 BUFFER_SEND: begin
-                    
                     if (i < 32) begin
                         sd <= {1'b0, ring_buffer[tail]};
                         tail <= (tail + 1) % BUFFER_SIZE;

@@ -33,6 +33,12 @@ module tsc_tb;
         forever #50 clk = ~clk;
     end
 
+    initial begin
+        $dumpfile("sd.vcd");
+        $dumpvars(0,tsc_tb);
+    end
+
+
     // Stimulus
     initial begin
         rst = 1; 
